@@ -1,7 +1,9 @@
 [build]
-  publish = "."
   command = "npm run build"
-  functions = ""
+  publish = "."
+
+# Explicitly disable functions
+[functions]
 
 [[redirects]]
   from = "/*"
