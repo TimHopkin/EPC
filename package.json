@@ -2,15 +2,20 @@
   "name": "epc-data-explorer",
   "version": "1.0.0",
   "description": "UK Energy Performance Certificate data analysis and visualization platform",
+  "main": "index.html",
   "scripts": {
-    "build": "echo 'Static site - no build required'",
-    "start": "echo 'Open index.html in browser'"
+    "build": "echo 'Static site ready'",
+    "start": "echo 'Static site - open index.html'",
+    "test": "echo 'No tests configured'"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/TimHopkin/EPC.git"
   },
-  "keywords": ["epc", "energy", "performance", "certificates", "uk", "data", "analysis"],
+  "keywords": ["epc", "energy", "performance", "certificates", "uk", "data", "analysis", "static-site"],
   "author": "Digital Land Solutions",
   "license": "MIT"
 }
