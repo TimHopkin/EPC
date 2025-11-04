@@ -1,14 +1,8 @@
 [build]
-  publish = "webapp"
-  command = "pip install -r requirements.txt"
-
-[build.environment]
-  PYTHON_VERSION = "3.8"
+  publish = "."
+  command = "echo 'Static site ready'"
 
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
+  from = "/*"
+  to = "/index.html"
   status = 200
-
-[functions]
-  directory = "webapp"

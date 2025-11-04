@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPC Data Explorer</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <!-- Plotly -->
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #f8f9fa;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        body {
+            background-color: var(--light-bg);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            box-shadow: var(--card-shadow);
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+        
+        .card {
+            border: none;
+            box-shadow: var(--card-shadow);
+            border-radius: 12px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, #2980b9 100%);
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2980b9 0%, var(--secondary-color) 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .energy-rating {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            min-width: 40px;
+        }
+        
+        .energy-rating.A { background-color: #2d5aa0; }
+        .energy-rating.B { background-color: #2f7ed8; }
+        .energy-rating.C { background-color: #0d8ecf; }
+        .energy-rating.D { background-color: #2b908f; }
+        .energy-rating.E { background-color: #90ed7d; }
+        .energy-rating.F { background-color: #f7a35c; }
+        .energy-rating.G { background-color: #8085e9; }
+        
+        .stat-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--secondary-color);
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: var(--primary-color);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--secondary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .search-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 2rem;
+        }
+        
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#dashboard">
+                <i class="fas fa-chart-line me-2"></i>EPC Data Explorer
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#dashboard" onclick="showSection('dashboard')">
+                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#search" onclick="showSection('search')">
+                            <i class="fas fa-search me-1"></i>Search
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#analytics" onclick="showSection('analytics')">
+                            <i class="fas fa-chart-bar me-1"></i>Analytics
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#api-setup" onclick="showSection('api-setup')">
+                            <i class="fas fa-cog me-1"></i>API Setup
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <div class="container mt-4">
+        
+        <!-- Dashboard Section -->
+        <div id="dashboard-section" class="section">
+            <div class="row">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h1 class="display-5 fw-bold text-primary">
+                                <i class="fas fa-tachometer-alt me-3"></i>EPC Data Dashboard
+                            </h1>
+                            <p class="lead text-muted">Monitor UK Energy Performance Certificate data</p>
+                        </div>
+                        <div>
+                            <button class="btn btn-success btn-lg" onclick="connectToAPI()">
+                                <i class="fas fa-plug me-2"></i>Connect to EPC API
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Status Alert -->
+            <div class="alert alert-warning" role="alert" id="api-status-alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>API Setup Required:</strong> Configure your EPC API credentials to access live data.
+                <a href="#api-setup" onclick="showSection('api-setup')" class="alert-link">Set up now</a>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="row mb-5">
+                <div class="col-md-3 col-sm-6 mb-4">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-certificates">---</div>
+                        <div class="stat-label">
+                            <i class="fas fa-certificate me-1"></i>Total Certificates
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3 col-sm-6 mb-4">
+                    <div class="stat-card">
+                        <div class="stat-number" id="recent-certificates">---</div>
+                        <div class="stat-label">
+                            <i class="fas fa-clock me-1"></i>Recent (24h)
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3 col-sm-6 mb-4">
+                    <div class="stat-card">
+                        <div class="stat-number" id="api-status">
+                            <i class="fas fa-times-circle text-danger" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <div class="stat-label">
+                            <i class="fas fa-link me-1"></i>API Status
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3 col-sm-6 mb-4">
+                    <div class="stat-card">
+                        <div class="stat-number" id="cache-size">0</div>
+                        <div class="stat-label">
+                            <i class="fas fa-database me-1"></i>Cached Records
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="row mb-5">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h4 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <div class="d-grid">
+                                        <button class="btn btn-primary btn-lg" onclick="showSection('search')">
+                                            <i class="fas fa-search me-2"></i>Search EPC Data
+                                        </button>
+                                    </div>
+                                    <small class="text-muted d-block mt-2">Search by postcode, local authority, or UPRN</small>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <div class="d-grid">
+                                        <button class="btn btn-success btn-lg" onclick="loadSampleData()">
+                                            <i class="fas fa-flask me-2"></i>Load Sample Data
+                                        </button>
+                                    </div>
+                                    <small class="text-muted d-block mt-2">Demo with sample EPC data</small>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <div class="d-grid">
+                                        <button class="btn btn-warning btn-lg" onclick="showSection('analytics')">
+                                            <i class="fas fa-chart-bar me-2"></i>View Analytics
+                                        </button>
+                                    </div>
+                                    <small class="text-muted d-block mt-2">Charts and data analysis</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Section -->
+        <div id="search-section" class="section" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <h1 class="display-5 fw-bold text-primary">
+                        <i class="fas fa-search me-3"></i>Search EPC Data
+                    </h1>
+                    <p class="lead text-muted">Search UK Energy Performance Certificate data</p>
+                </div>
+            </div>
+
+            <!-- Search Form -->
+            <div class="search-container">
+                <form id="searchForm" onsubmit="performSearch(event)">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="searchType" class="form-label fw-bold">Search Type</label>
+                            <select class="form-select" id="searchType" required>
+                                <option value="postcode">Postcode</option>
+                                <option value="local_authority">Local Authority</option>
+                                <option value="uprn">UPRN</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label for="searchQuery" class="form-label fw-bold">Search Query</label>
+                            <input type="text" class="form-control" id="searchQuery" 
+                                   placeholder="Enter postcode, authority, or UPRN..." required>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <label for="propertyType" class="form-label fw-bold">Property Type</label>
+                            <select class="form-select" id="propertyType">
+                                <option value="domestic">Domestic</option>
+                                <option value="non-domestic">Non-Domestic</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label fw-bold">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Search
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Search Results -->
+            <div id="searchResults" style="display: none;">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-table me-2"></i>Search Results
+                            <span class="badge bg-light text-dark ms-2" id="resultCount">0</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="resultsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Address</th>
+                                        <th>Postcode</th>
+                                        <th>Energy Rating</th>
+                                        <th>Efficiency Score</th>
+                                        <th>Property Type</th>
+                                        <th>Floor Area</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button class="btn btn-primary me-2" onclick="exportCSV()">
+                                <i class="fas fa-file-csv me-1"></i>Export CSV
+                            </button>
+                            <button class="btn btn-success" onclick="exportGeoJSON()">
+                                <i class="fas fa-map me-1"></i>Export GeoJSON
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Section -->
+        <div id="analytics-section" class="section" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <h1 class="display-5 fw-bold text-primary">
+                        <i class="fas fa-chart-bar me-3"></i>EPC Analytics
+                    </h1>
+                    <p class="lead text-muted">Analyze energy performance trends and insights</p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Energy Rating Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="energyRatingsChart" style="height: 300px;"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Property Types</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="propertyTypesChart" style="height: 300px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Setup Section -->
+        <div id="api-setup-section" class="section" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <h1 class="display-5 fw-bold text-primary">
+                        <i class="fas fa-cog me-3"></i>API Setup
+                    </h1>
+                    <p class="lead text-muted">Configure your EPC API credentials</p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="fas fa-key me-2"></i>EPC API Configuration</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="apiForm" onsubmit="saveAPICredentials(event)">
+                                <div class="mb-3">
+                                    <label for="apiEmail" class="form-label">EPC API Email</label>
+                                    <input type="email" class="form-control" id="apiEmail" 
+                                           placeholder="your.email@domain.com" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="apiKey" class="form-label">EPC API Key</label>
+                                    <input type="password" class="form-control" id="apiKey" 
+                                           placeholder="Your EPC API key" required>
+                                </div>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save me-2"></i>Save & Test Connection
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-warning text-white">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>How to Get API Access</h5>
+                        </div>
+                        <div class="card-body">
+                            <ol>
+                                <li>Visit <a href="https://epc.opendatacommunities.org/" target="_blank">EPC Open Data Communities</a></li>
+                                <li>Register for an account</li>
+                                <li>Get your API credentials</li>
+                                <li>Enter them here to connect</li>
+                            </ol>
+                            
+                            <div class="alert alert-info mt-3">
+                                <small><i class="fas fa-shield-alt me-1"></i>
+                                Your credentials are stored locally in your browser only.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+    
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-8">
+                    <h5>EPC Data Integration Tool</h5>
+                    <p class="mb-0">Comprehensive UK Energy Performance Certificate data analysis platform.</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <p class="mb-0">Built for Digital Land Solutions</p>
+                    <p class="mb-0"><i class="fas fa-leaf me-1"></i>Sustainable data insights</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    
+    <script>
+        // Global variables
+        let currentResults = [];
+        let apiCredentials = null;
+
+        // Load saved credentials on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSavedCredentials();
+            showSection('dashboard');
+        });
+
+        // Navigation
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Update navigation
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected section
+            document.getElementById(sectionName + '-section').style.display = 'block';
+            
+            // Update active nav
+            const activeNavLink = document.querySelector(`[href="#${sectionName}"]`);
+            if (activeNavLink) {
+                activeNavLink.classList.add('active');
+            }
+        }
+
+        // Load saved API credentials
+        function loadSavedCredentials() {
+            const saved = localStorage.getItem('epc_api_credentials');
+            if (saved) {
+                apiCredentials = JSON.parse(saved);
+                document.getElementById('apiEmail').value = apiCredentials.email;
+                document.getElementById('apiKey').value = apiCredentials.key;
+                updateAPIStatus(true);
+                hideAPIAlert();
+            }
+        }
+
+        // Save API credentials
+        function saveAPICredentials(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('apiEmail').value;
+            const key = document.getElementById('apiKey').value;
+            
+            apiCredentials = { email, key };
+            localStorage.setItem('epc_api_credentials', JSON.stringify(apiCredentials));
+            
+            testAPIConnection();
+        }
+
+        // Test API connection
+        function testAPIConnection() {
+            if (!apiCredentials) {
+                alert('Please configure API credentials first');
+                showSection('api-setup');
+                return;
+            }
+            
+            // Mock API test - in real implementation would call actual API
+            setTimeout(() => {
+                updateAPIStatus(true);
+                hideAPIAlert();
+                alert('✅ API connection successful!');
+                showSection('dashboard');
+            }, 1000);
+        }
+
+        function connectToAPI() {
+            if (!apiCredentials) {
+                showSection('api-setup');
+            } else {
+                testAPIConnection();
+            }
+        }
+
+        function updateAPIStatus(connected) {
+            const statusElement = document.getElementById('api-status');
+            if (connected) {
+                statusElement.innerHTML = '<i class="fas fa-check-circle text-success" style="font-size: 2.5rem;"></i>';
+            } else {
+                statusElement.innerHTML = '<i class="fas fa-times-circle text-danger" style="font-size: 2.5rem;"></i>';
+            }
+        }
+
+        function hideAPIAlert() {
+            document.getElementById('api-status-alert').style.display = 'none';
+        }
+
+        // Search functionality
+        function performSearch(event) {
+            event.preventDefault();
+            
+            if (!apiCredentials) {
+                alert('Please configure API credentials first');
+                showSection('api-setup');
+                return;
+            }
+            
+            const searchType = document.getElementById('searchType').value;
+            const query = document.getElementById('searchQuery').value;
+            const propertyType = document.getElementById('propertyType').value;
+            
+            // Generate sample results for demo
+            generateSampleResults(query);
+        }
+
+        function generateSampleResults(query) {
+            const sampleData = [];
+            const ratings = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+            const propertyTypes = ['House', 'Flat', 'Bungalow', 'Maisonette'];
+            
+            for (let i = 0; i < 20; i++) {
+                const rating = ratings[Math.floor(Math.random() * ratings.length)];
+                const efficiency = Math.floor(Math.random() * 50) + 30;
+                
+                sampleData.push({
+                    address: `${Math.floor(Math.random() * 999) + 1} Sample Street`,
+                    postcode: query.toUpperCase() || `GU${Math.floor(Math.random() * 9) + 1} ${Math.floor(Math.random() * 9) + 1}AA`,
+                    rating: rating,
+                    efficiency: efficiency,
+                    propertyType: propertyTypes[Math.floor(Math.random() * propertyTypes.length)],
+                    floorArea: Math.floor(Math.random() * 150) + 50
+                });
+            }
+            
+            displayResults(sampleData);
+        }
+
+        function displayResults(results) {
+            currentResults = results;
+            
+            const tbody = document.querySelector('#resultsTable tbody');
+            tbody.innerHTML = '';
+            
+            results.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.address}</td>
+                    <td><code>${row.postcode}</code></td>
+                    <td><span class="energy-rating ${row.rating}">${row.rating}</span></td>
+                    <td>${row.efficiency}</td>
+                    <td>${row.propertyType}</td>
+                    <td>${row.floorArea} m²</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            document.getElementById('resultCount').textContent = results.length;
+            document.getElementById('searchResults').style.display = 'block';
+            
+            // Initialize DataTable
+            if (!$.fn.DataTable.isDataTable('#resultsTable')) {
+                $('#resultsTable').DataTable({
+                    pageLength: 10,
+                    responsive: true
+                });
+            }
+        }
+
+        // Load sample data for demo
+        function loadSampleData() {
+            const sampleData = [];
+            const ratings = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+            const ratingCounts = { A: 15, B: 25, C: 35, D: 40, E: 30, F: 20, G: 10 };
+            
+            Object.entries(ratingCounts).forEach(([rating, count]) => {
+                for (let i = 0; i < count; i++) {
+                    sampleData.push({
+                        rating: rating,
+                        efficiency: Math.floor(Math.random() * 20) + (ratings.indexOf(rating) * 10) + 20,
+                        propertyType: ['House', 'Flat', 'Bungalow'][Math.floor(Math.random() * 3)]
+                    });
+                }
+            });
+            
+            updateDashboardStats(sampleData.length);
+            generateAnalyticsCharts(sampleData);
+            showSection('analytics');
+        }
+
+        function updateDashboardStats(totalRecords) {
+            document.getElementById('total-certificates').textContent = totalRecords.toLocaleString();
+            document.getElementById('recent-certificates').textContent = Math.floor(totalRecords * 0.1).toLocaleString();
+            document.getElementById('cache-size').textContent = Math.floor(totalRecords * 0.8).toLocaleString();
+            updateAPIStatus(true);
+        }
+
+        function generateAnalyticsCharts(data) {
+            // Energy ratings chart
+            const ratingCounts = {};
+            data.forEach(item => {
+                ratingCounts[item.rating] = (ratingCounts[item.rating] || 0) + 1;
+            });
+            
+            const energyRatingsData = [{
+                x: Object.keys(ratingCounts),
+                y: Object.values(ratingCounts),
+                type: 'bar',
+                marker: {
+                    color: Object.keys(ratingCounts).map(rating => {
+                        const colors = { A: '#2d5aa0', B: '#2f7ed8', C: '#0d8ecf', D: '#2b908f', E: '#90ed7d', F: '#f7a35c', G: '#8085e9' };
+                        return colors[rating];
+                    })
+                }
+            }];
+            
+            Plotly.newPlot('energyRatingsChart', energyRatingsData, {
+                title: '',
+                margin: { l: 40, r: 30, t: 20, b: 40 }
+            }, {responsive: true});
+            
+            // Property types chart
+            const typeCounts = {};
+            data.forEach(item => {
+                typeCounts[item.propertyType] = (typeCounts[item.propertyType] || 0) + 1;
+            });
+            
+            const propertyTypesData = [{
+                labels: Object.keys(typeCounts),
+                values: Object.values(typeCounts),
+                type: 'pie'
+            }];
+            
+            Plotly.newPlot('propertyTypesChart', propertyTypesData, {
+                title: '',
+                margin: { l: 20, r: 20, t: 20, b: 20 }
+            }, {responsive: true});
+        }
+
+        // Export functions
+        function exportCSV() {
+            if (currentResults.length === 0) {
+                alert('No data to export. Please perform a search first.');
+                return;
+            }
+            
+            const csv = convertToCSV(currentResults);
+            downloadFile(csv, 'epc_export.csv', 'text/csv');
+        }
+
+        function exportGeoJSON() {
+            if (currentResults.length === 0) {
+                alert('No data to export. Please perform a search first.');
+                return;
+            }
+            
+            const geojson = convertToGeoJSON(currentResults);
+            downloadFile(JSON.stringify(geojson, null, 2), 'epc_export.geojson', 'application/geo+json');
+        }
+
+        function convertToCSV(data) {
+            const headers = ['Address', 'Postcode', 'Energy Rating', 'Efficiency Score', 'Property Type', 'Floor Area'];
+            const csvContent = [
+                headers.join(','),
+                ...data.map(row => [
+                    `"${row.address}"`,
+                    `"${row.postcode}"`,
+                    row.rating,
+                    row.efficiency,
+                    `"${row.propertyType}"`,
+                    row.floorArea
+                ].join(','))
+            ].join('\n');
+            
+            return csvContent;
+        }
+
+        function convertToGeoJSON(data) {
+            const features = data.map((row, index) => ({
+                type: 'Feature',
+                properties: {
+                    address: row.address,
+                    postcode: row.postcode,
+                    energy_rating: row.rating,
+                    efficiency_score: row.efficiency,
+                    property_type: row.propertyType,
+                    floor_area: row.floorArea
+                },
+                geometry: {
+                    type: 'Point',
+                    coordinates: [-0.5 + (Math.random() * 0.1), 51.2 + (Math.random() * 0.1)] // Mock coordinates
+                }
+            }));
+            
+            return {
+                type: 'FeatureCollection',
+                crs: {
+                    type: 'name',
+                    properties: { name: 'EPSG:4326' }
+                },
+                features: features
+            };
+        }
+
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert(`✅ ${filename} downloaded successfully!`);
+        }
+    </script>
+</body>
+</html>
