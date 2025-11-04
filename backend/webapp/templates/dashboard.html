@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - EPC Data Explorer{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Page Header -->
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="display-5 fw-bold text-primary">
+                    <i class="fas fa-tachometer-alt me-3"></i>EPC Data Dashboard
+                </h1>
+                <p class="lead text-muted">Monitor UK Energy Performance Certificate data and system performance</p>
+            </div>
+            <div>
+                <button class="btn btn-success btn-lg" onclick="refreshStats()">
+                    <i class="fas fa-sync-alt me-2"></i>Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-5">
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="stat-card">
+            <div class="stat-number" id="total-certificates">
+                {{ cache_stats.total_certificates if cache_stats else 0 }}
+            </div>
+            <div class="stat-label">
+                <i class="fas fa-certificate me-1"></i>Total Certificates
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="stat-card">
+            <div class="stat-number" id="recent-certificates">
+                {{ cache_stats.recent_certificates if cache_stats else 0 }}
+            </div>
+            <div class="stat-label">
+                <i class="fas fa-clock me-1"></i>Recent (24h)
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="stat-card">
+            <div class="stat-number" id="api-status">
+                <i class="fas fa-check-circle text-success" style="font-size: 2.5rem;"></i>
+            </div>
+            <div class="stat-label">
+                <i class="fas fa-link me-1"></i>API Status
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="stat-card">
+            <div class="stat-number" id="cache-size">
+                {{ (cache_stats.by_property_type.domestic + cache_stats.by_property_type.get('non-domestic', 0)) if cache_stats and cache_stats.by_property_type else 0 }}
+            </div>
+            <div class="stat-label">
+                <i class="fas fa-database me-1"></i>Cached Records
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="d-grid">
+                            <a href="{{ url_for('search_page') }}" class="btn btn-primary btn-lg">
+                                <i class="fas fa-search me-2"></i>Search EPC Data
+                            </a>
+                        </div>
+                        <small class="text-muted d-block mt-2">Search by postcode, local authority, or UPRN</small>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <div class="d-grid">
+                            <a href="{{ url_for('map_page') }}" class="btn btn-success btn-lg">
+                                <i class="fas fa-map me-2"></i>View Map
+                            </a>
+                        </div>
+                        <small class="text-muted d-block mt-2">Interactive map visualization</small>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <div class="d-grid">
+                            <a href="{{ url_for('analytics_page') }}" class="btn btn-warning btn-lg">
+                                <i class="fas fa-chart-bar me-2"></i>Analytics
+                            </a>
+                        </div>
+                        <small class="text-muted d-block mt-2">Charts and data analysis</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cache Statistics -->
+{% if cache_stats and cache_stats.by_property_type %}
+<div class="row mb-5">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Data by Property Type</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for prop_type, count in cache_stats.by_property_type.items() %}
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                            <div>
+                                <h6 class="mb-0 text-capitalize">{{ prop_type.replace('-', ' ') }}</h6>
+                                <small class="text-muted">Properties</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="h4 mb-0 text-primary">{{ count }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>System Info</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <small class="text-muted">Database Location</small>
+                    <div class="font-monospace small">{{ cache_stats.database_path if cache_stats else 'N/A' }}</div>
+                </div>
+                
+                <div class="mb-3">
+                    <small class="text-muted">API Endpoint</small>
+                    <div class="font-monospace small">epc.opendatacommunities.org</div>
+                </div>
+                
+                <div class="mb-3">
+                    <small class="text-muted">Last Updated</small>
+                    <div id="last-updated">Just now</div>
+                </div>
+                
+                <button class="btn btn-outline-primary btn-sm" onclick="testApiConnection()">
+                    <i class="fas fa-plug me-1"></i>Test API
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Recent Activity / Usage Examples -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-terminal me-2"></i>Example Searches</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Try these example searches to explore EPC data:</p>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <h6><i class="fas fa-map-marker-alt me-1 text-primary"></i>By Postcode</h6>
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control font-monospace" value="GU1 1AA" readonly>
+                            <button class="btn btn-outline-primary" onclick="quickSearch('postcode', 'GU1')">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control font-monospace" value="M1 1AA" readonly>
+                            <button class="btn btn-outline-primary" onclick="quickSearch('postcode', 'M1')">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <h6><i class="fas fa-building me-1 text-success"></i>By Local Authority</h6>
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control font-monospace" value="Surrey" readonly>
+                            <button class="btn btn-outline-success" onclick="quickSearch('local_authority', 'Surrey')">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control font-monospace" value="Guildford" readonly>
+                            <button class="btn btn-outline-success" onclick="quickSearch('local_authority', 'Guildford')">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function refreshStats() {
+    // Add loading state
+    const refreshBtn = document.querySelector('[onclick="refreshStats()"]');
+    const originalHTML = refreshBtn.innerHTML;
+    refreshBtn.innerHTML = '<span class="loading-spinner"></span>Refreshing...';
+    refreshBtn.disabled = true;
+    
+    // Simulate refresh (in real implementation, you'd call an API)
+    setTimeout(() => {
+        location.reload();
+    }, 1500);
+}
+
+function testApiConnection() {
+    const testBtn = document.querySelector('[onclick="testApiConnection()"]');
+    const originalHTML = testBtn.innerHTML;
+    testBtn.innerHTML = '<span class="loading-spinner"></span>Testing...';
+    testBtn.disabled = true;
+    
+    fetch('/api/test', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            testBtn.innerHTML = '<i class="fas fa-check me-1 text-success"></i>Connected';
+            testBtn.classList.remove('btn-outline-primary');
+            testBtn.classList.add('btn-outline-success');
+        } else {
+            testBtn.innerHTML = '<i class="fas fa-times me-1 text-danger"></i>Failed';
+            testBtn.classList.remove('btn-outline-primary');
+            testBtn.classList.add('btn-outline-danger');
+        }
+    })
+    .catch(error => {
+        testBtn.innerHTML = '<i class="fas fa-times me-1 text-danger"></i>Error';
+        testBtn.classList.remove('btn-outline-primary');
+        testBtn.classList.add('btn-outline-danger');
+    })
+    .finally(() => {
+        testBtn.disabled = false;
+        setTimeout(() => {
+            testBtn.innerHTML = originalHTML;
+            testBtn.classList.remove('btn-outline-success', 'btn-outline-danger');
+            testBtn.classList.add('btn-outline-primary');
+        }, 3000);
+    });
+}
+
+function quickSearch(searchType, query) {
+    // Redirect to search page with pre-filled data
+    const searchUrl = `{{ url_for('search_page') }}?type=${searchType}&q=${encodeURIComponent(query)}`;
+    window.location.href = searchUrl;
+}
+
+// Update last updated time
+document.addEventListener('DOMContentLoaded', function() {
+    const lastUpdated = document.getElementById('last-updated');
+    if (lastUpdated) {
+        const now = new Date();
+        lastUpdated.textContent = now.toLocaleString();
+    }
+});
+
+// Animate statistics on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const statNumbers = document.querySelectorAll('.stat-number');
+    statNumbers.forEach(stat => {
+        const finalValue = parseInt(stat.textContent) || 0;
+        let currentValue = 0;
+        const increment = Math.ceil(finalValue / 50);
+        
+        const counter = setInterval(() => {
+            currentValue += increment;
+            if (currentValue >= finalValue) {
+                stat.textContent = finalValue;
+                clearInterval(counter);
+            } else {
+                stat.textContent = currentValue;
+            }
+        }, 30);
+    });
+});
+</script>
+{% endblock %}
